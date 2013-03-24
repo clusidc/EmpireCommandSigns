@@ -1,0 +1,6 @@
+name: EmpireCommandSigns
+main: clusidc.EmpireCommandSigns.EmpireCommandSigns
+version: Beta-0.2.1
+commands:
+  ecs:
+    description: Plugin EmpireCommandSigns http://dev.bukkit.org/server-mods/empirecommandsigns/

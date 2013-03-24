@@ -1,0 +1,2 @@
+* fixed an empty command/permission in the list
++ added removing/modifying command and permission
