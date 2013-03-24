@@ -45,18 +45,22 @@ public class EventListener implements Listener {
                   //(plugin.needpermission.get(id)!=null ? pl.hasPermission(plugin.needpermission.get(id)) : true))) {
               pl.sendMessage("[ECS] Performing commands assigned to this Sign.");
               Location loc = pl.getLocation();
-              if(plugin.executeat.containsKey(id)) {
-                pl.teleport(plugin.executeat.get(id));
-              }
+              
               HashMap<String, PermissionAttachment> att = new HashMap<String, PermissionAttachment>();
               if(plugin.givenpermissions.containsKey(id)) {
                 for(String perm : plugin.givenpermissions.get(id)) {
                   att.put(perm, pl.addAttachment(this.plugin, perm, true));
                 }
               }
-
-              plugin.log.info(pl.getName() + " is performing following commands through the block at x:" + bl.getX() + " y:" + bl.getY() + " z:" + bl.getZ() + " on " + bl.getWorld().getName() +
-                  " at position x:" + plugin.executeat.get(id).getX() + " y:" + plugin.executeat.get(id).getY() + " z:" + plugin.executeat.get(id).getZ() + " on " + plugin.executeat.get(id).getWorld().getName() +":");
+              
+              if(plugin.executeat.containsKey(id)) {
+                pl.teleport(plugin.executeat.get(id));
+                plugin.log.info(pl.getName() + " is performing following commands through the block at x:" + bl.getX() + " y:" + bl.getY() + " z:" + bl.getZ() + " on " + bl.getWorld().getName() +
+                    " at position x:" + plugin.executeat.get(id).getX() + " y:" + plugin.executeat.get(id).getY() + " z:" + plugin.executeat.get(id).getZ() + " on " + plugin.executeat.get(id).getWorld().getName() +":");
+              } else {
+                plugin.log.info(pl.getName() + " is performing following commands through the block at x:" + bl.getX() + " y:" + bl.getY() + " z:" + bl.getZ() + " on " + bl.getWorld().getName() + ":");
+              }
+              
               if(plugin.commands.containsKey(id)) {
                 for(String com : plugin.commands.get(id)) {
                   if(com != null && !com.equalsIgnoreCase("")) {
@@ -89,6 +93,7 @@ public class EventListener implements Listener {
             }
           }
         } else if(plugin.playerstate.get(pl) == state.CREATE) { //If STATE CREATE
+          evt.setCancelled(true);
           if(pl.isOp() || pl.hasPermission("*") ||  pl.hasPermission("ecs.*") || pl.hasPermission("ecs.admin")) {
             if(plugin.positions.containsKey(bl.getLocation().clone())) {
               pl.sendMessage("[ECS] The command sign is already created.");
@@ -178,6 +183,7 @@ public class EventListener implements Listener {
             }
           } else {
             pl.sendMessage("[ECS] You don't have enough permission to create a sign.");
+            evt.setCancelled(true);
           }
         } else if(plugin.playerstate.get(pl) == state.ADDGIVEPERM) { //If STATE ADDGIVEPERM
           if(pl.isOp() || pl.hasPermission("*") ||  pl.hasPermission("ecs.*") || pl.hasPermission("ecs.admin")) {
@@ -277,10 +283,14 @@ public class EventListener implements Listener {
         } else if(plugin.playerstate.get(pl) == state.SETLOCATION) { //If STATE ADDGIVEPERM
           if(pl.isOp() || pl.hasPermission("*") ||  pl.hasPermission("ecs.*") || pl.hasPermission("ecs.admin")) {
             if(plugin.positions.containsKey(bl.getLocation().clone())) {
-              if(!plugin.setloc(bl.getLocation().clone(), (Location)plugin.commandstore.get(pl), (CommandSender) pl)) {
+              if(!plugin.setloc(bl.getLocation().clone(), (plugin.commandstore.get(pl) == null ? null : (Location)plugin.commandstore.get(pl)) , (CommandSender) pl)) {
                 pl.sendMessage("[ECS] A problem occured while setting the executing location of the sign, please view the server log for further information.");
               } else {
-                pl.sendMessage("[ECS] Successfully set the executing location of the sign to x:" + ((Location)plugin.commandstore.get(pl)).getX() + " y:" + ((Location)plugin.commandstore.get(pl)).getY() + " z:" + ((Location)plugin.commandstore.get(pl)).getZ() + " in world:" + ((Location)plugin.commandstore.get(pl)).getWorld().getName());
+                if(plugin.commandstore.get(pl) == null) {
+                  pl.sendMessage("[ECS] Successfully removed the executing location from the sign.");
+                } else {
+                  pl.sendMessage("[ECS] Successfully set the executing location of the sign to x:" + ((Location)plugin.commandstore.get(pl)).getX() + " y:" + ((Location)plugin.commandstore.get(pl)).getY() + " z:" + ((Location)plugin.commandstore.get(pl)).getZ() + " in world:" + ((Location)plugin.commandstore.get(pl)).getWorld().getName());                  
+                }
               }
             } else {
               pl.sendMessage("[ECS] Sign is not registered, please create it first! Aborted adding permissions!");
@@ -297,9 +307,11 @@ public class EventListener implements Listener {
               int id = plugin.positions.get(bl.getLocation().clone());
               pl.sendMessage("[ECB] Information to this Sign (id: " + id + "):");
               pl.sendMessage(" |-> x:" + bl.getX() + " y:" + bl.getY() + " z:" + bl.getZ() + " world:" + bl.getWorld().getName());
-              pl.sendMessage(" |-, Executing at: ");
-              Location loc = plugin.executeat.get(id);
-              pl.sendMessage("   |-> x:" + Math.round(loc.getX()) + " y:" + Math.round(loc.getY()) + " z:" + Math.round(loc.getZ()) + " world:" + loc.getWorld().getName());
+              if(plugin.executeat.containsKey(id)) {
+                pl.sendMessage(" |-, Executing at: ");
+                Location loc = plugin.executeat.get(id);
+                pl.sendMessage("   |-> x:" + Math.round(loc.getX()) + " y:" + Math.round(loc.getY()) + " z:" + Math.round(loc.getZ()) + " world:" + loc.getWorld().getName());
+              }              
               if(plugin.needop.get(id)) {
                 pl.sendMessage(" |-> You need OP for this Sign to use.");
               } else {

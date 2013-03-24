@@ -76,7 +76,7 @@ public class EmpireCommandSigns extends JavaPlugin{
   
   private boolean opendb() {
     log.info("Open Database...");
-    db = new SQLite(log, "", pluginFolder.getPath(), "signs.db");
+    db = new SQLite(log, "[ECS] ", pluginFolder.getPath(), "signs");
     if(!db.open()) {
       log.log(Level.SEVERE, "Failed to connect to the Database.");
       return false;
@@ -102,7 +102,7 @@ public class EmpireCommandSigns extends JavaPlugin{
         return false;
       }
     }
-    db.close();
+    //db.close();
     return true;
   }
   
@@ -112,6 +112,7 @@ public class EmpireCommandSigns extends JavaPlugin{
     givenpermissions.clear();
     needop.clear();
     needpermission.clear();
+    executeat.clear();
     
     if(!opendb()) {
       setEnabled(false);
@@ -653,9 +654,14 @@ public class EmpireCommandSigns extends JavaPlugin{
       log.log(Level.SEVERE, "Failed to connect to the Database.");
       return false;
     }
-    
-    String query = "UPDATE signs SET exex=" + exeloc.getX() + ", exey=" + exeloc.getY() + ", exez=" + exeloc.getZ() + ", exeworld=\"" + exeloc.getWorld().getName() + "\" WHERE id=" + positions.get(loc) + ";";
 
+    String query = "";
+    if(exeloc != null) {
+      query = "UPDATE signs SET exex=" + exeloc.getX() + ", exey=" + exeloc.getY() + ", exez=" + exeloc.getZ() + ", exeworld=\"" + exeloc.getWorld().getName() + "\" WHERE id=" + positions.get(loc) + ";";
+    } else {
+      query = "UPDATE signs SET exex=0, exey=0, exez=0, exeworld=\"\" WHERE id=" + positions.get(loc) + ";";
+    }
+      
     ResultSet result = null;
 
     try {
@@ -682,11 +688,15 @@ public class EmpireCommandSigns extends JavaPlugin{
     }
     db.close();
     
+    if(exeloc != null) {
+      log.info(sender.getName() + " set the following location on the Sign with id " + positions.get(loc) + ": " + exeloc.toString());
+    } else {
+      log.info(sender.getName() + " removed the location from the Sign with id " + positions.get(loc));
+    }
+
     if(!loadSigns()) {
       return false;
     }
-    
-    log.info(sender.getName() + " set the following location on the Sign with id " + positions.get(loc) + ": " + exeloc.toString());
     
     return true;
   }
@@ -1393,23 +1403,58 @@ public class EmpireCommandSigns extends JavaPlugin{
                       sender.sendMessage("[ECS] Your id is not a parsable int.");
                       return true;
                     }
+                    
                     if(positions.containsValue(intid)) {
                       Set<Entry<Location, Integer>> posset = positions.entrySet();
                       for(Entry<Location, Integer> ent: posset) {
                         if(ent.getValue() == intid) {
-                          if(!setloc(ent.getKey(), ((Player) sender).getLocation(), sender)) {
-                            sender.sendMessage("[ECS] A problem occured while setting the executing location of the sign, please view the server log for further information.");
-                            return true;
+                          if(args.length > 3) {
+                            if (!args[3].equalsIgnoreCase("none")) {
+                              if(!setloc(ent.getKey(), ((Player) sender).getLocation(), sender)) {
+                                sender.sendMessage("[ECS] A problem occured while setting the executing location of the sign, please view the server log for further information.");
+                                return true;
+                              } else {
+                                sender.sendMessage("[ECS] Successfully set the executing location of the sign to x:" + ((Player) sender).getLocation().getX() + " y:" + ((Player) sender).getLocation().getY() + " z:" + ((Player) sender).getLocation().getZ() + " in world:" + ((Player) sender).getLocation().getWorld().getName());
+                                return true;
+                              }
+                            } else {
+                              if(!setloc(ent.getKey(), null, sender)) {
+                                sender.sendMessage("[ECS] A problem occured while setting the executing location of the sign, please view the server log for further information.");
+                                return true;
+                              } else {
+                                sender.sendMessage("[ECS] Successfully removed the executing location of the sign");
+                                return true;
+                              }
+                            }
                           } else {
-                            sender.sendMessage("[ECS] Successfully set the executing location of the sign to x:" + ((Player) sender).getLocation().getX() + " y:" + ((Player) sender).getLocation().getY() + " z:" + ((Player) sender).getLocation().getZ() + " in world:" + ((Player) sender).getLocation().getWorld().getName());
-                            return true;
-                          }
+                            if(!setloc(ent.getKey(), ((Player) sender).getLocation(), sender)) {
+                              sender.sendMessage("[ECS] A problem occured while setting the executing location of the sign, please view the server log for further information.");
+                              return true;
+                            } else {
+                              sender.sendMessage("[ECS] Successfully set the executing location of the sign to x:" + ((Player) sender).getLocation().getX() + " y:" + ((Player) sender).getLocation().getY() + " z:" + ((Player) sender).getLocation().getZ() + " in world:" + ((Player) sender).getLocation().getWorld().getName());
+                              return true;
+                            }
+                          }                          
                         }
                       }
                     } else {
                       sender.sendMessage("[ECS] Your id does not exist.");
                       return true;
                     }
+                  }
+                } else if (args[1].equalsIgnoreCase("none")) {
+                  if(playerstate.get((Player) sender) != state.SETLOCATION) {
+                    playerstate.remove((Player) sender);
+                    playerstate.put((Player) sender, state.SETLOCATION);
+                    
+                    commandstore.put((Player) sender, null);
+                    sender.sendMessage("[ECS] To set the executing location of a sign, please click on it.");
+                    return true;
+                  } else {
+                    playerstate.remove((Player) sender);
+                    commandstore.remove((Player) sender);
+                    sender.sendMessage("[ECS] Aborted setting location!");
+                    return true;
                   }
                 } else {
                   sender.sendMessage("[ECS] Too few arguments.");
