@@ -1,2 +1,3 @@
-* fixed an empty command/permission in the list
-+ added removing/modifying command and permission
+* Completely rearranged the EntityListener to make it (hopefully) faster/easier to read/less code.
++ added pressure plates
++ added config node for leftclick.

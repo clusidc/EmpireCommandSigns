@@ -1,0 +1,106 @@
+
+
+This Plugin adds actions for rightclicking on your signs.
+
+You can add an arbitrary number of Commands which will be executed by right-clicking the Sign. These Commands will be executed on a location defined by you! You also have the opportunity to set the needed permission to use the sign. You can also give temporary permissions to a player for executing the commands.
+
+Beta-0.3: Buttons can also be CommandSigns ;-)
+
+Beta-0.3.1: You can also set a pressureplate as CommandSign. To activate it, trigger it.
+
+As of Version Beta-0.3 you'll need the SQLibrary!!
+
+Beta-0.3 should work fine on 1.4.7 because i didn't change any system call. Try it. But i can't give support for versions prior the last version (bukkit AND the plugin).
+Using a CommandSign
+
+If it is a sign, just rightclick it (leftclick too if activated in config).
+
+If it is a Button, toggle the Button by rightclick (to use it with the redstone output together). If activated in config, you can do a leftclick to use it without the redstone current (In my Opinion Minecraft uses only rightclicks to activate buttons).
+
+If it is a Pressure Plate, place yourself on it. (No Clicking).
+
+In some cases rightclicks doesn't work, because you have a block in your hand, which cannot be placed there. For Best Results Use A Tool
+Creating a CommandSign
+
+To create a CommandSign you must first place a Sign. Then you type "/ecs create" and rightclick the Sign to register this Sign in ECS's Database.
+
+If you use a pressure plate please click too. Moving on it is only for Using the plate.
+Adding Commands
+
+Type "/ecs addcommand <Your command here>" to add a command. You must type the leading slash if it is an command. Otherwise the player would chat.
+
+"/ecs addcommand time set 0" -> The Player sends the Message "time set 0" on rightclicking.
+
+"/ecs addcommand /time set 0" -> The Player executes the command "/time set 0" on rightclicking.
+Templates
+
+It is possible to use the template "%player%". If you add it to your command it will be replaced by the executings' player name.
+
+"/ecs addcommand Player %player% just used the sign!" -> The Player "John_Doe" sends the Message "Player John_Doe just used the sign!"
+Adding temporary Permissions
+
+Type "/ecs addperm <Your permission here>" to add temporary permissions to the player. These temporary permissions allow the player to execute commands which they normally are not allowed to. The permissions are revoked after the command executung process.
+Modify a Command/Permission
+
+Type "/ecs modcommand" or "/ecs modperm" then enter the Index of the command/permission and then the value to replace. The index can be received by the "/ecs info" - command on the sign. It's the leading number of each entry.
+
+example: You want to modify the Permission number 4 to "john.doe" => "/ecs modperm 4 john.doe"
+Remove a Command/Permission
+
+Type "/ecs remcommand" or "/ecs remperm" then enter the Index of the command/permission.
+
+example: You want to remove the Command number 2 => "/ecs remcommand 2"
+Set the required permission to use this Sign
+
+Type "/ecs setperm <Your permission here>" to set the required permission. The player must have this permission if he wants to use this sign.
+Set the position where the plugins are executed
+
+First move to the location where the commands should be executed. Then type "/ecs setloc" and right-click your sign. This is multiworld compatible.
+Set the Sign to OP-only
+
+Type "/ecs setop <true | false>" and then right click the sign.
+Get Info about any CommandSign
+
+Type "/ecs info" and rightclick the Sign.
+Remove a Sign
+
+Type "/ecs remove" and rightclick a CommandSign.
+Commands
+
+    /ecs create - Perm: ecs.admin - Creates a new Sign
+    /ecs addcommand [optional: "id <value>"] <command> - Perm: ecs.admin - Adds a command
+    /ecs addperm [optional: "id <value>"] <permission> - Perm: ecs.admin - Adds a temporary permission
+    /ecs modcommand [optional: "id <value>"] <index> <newcommand> - Perm: ecs.admin - Modifies a command (index is visible in "/ecs info")
+    /ecs modperm [optional: "id <value>"] <index> <newpermission> - Perm: ecs.admin - Modifies a permission
+    /ecs remcommand [optional: "id <value>"] <index> - Perm: ecs.admin - Removes a command
+    /ecs remperm [optional: "id <value>"] <index> - Perm: ecs.admin - Removes a command
+    /ecs setperm [optional: "id <value>"] <permission> - Perm: ecs.admin - Sets the required permission. Default is ecs.use
+    /ecs setloc [optional: "id <value>" "none"] - Perm: ecs.admin - Sets/removes ("none") the location of the commands execute
+    /ecs setop [optional: "id <value>"] <true | false> - Perm: ecs.admin - Sets this sign op-only
+    /ecs info - Perm: ecs.info - Gets info about this sign
+    /ecs remove [optional: "id <value>"] - Perm: ecs.admin - removes this sign
+    /ecs reload - Perm: ecs.reload - Reloads the plugins database 
+
+Instead of rightclicking the sign everytime you can place a "id <Sign-id>" between the command and the argument. example: /ecs addcommand id 2 /time set 0 - this adds the command "/time set 0" to the sign with id 2. The id can be seen in the info of the sign.
+Config-File
+
+    leftclick: (default: true) - you can say whether you use only rightclicks, or leftclicks too (true: left AND rightclicking, false: only rightclicking). 
+
+Intended Upgrades
+
+    Remove incompatibility with XPBank. - Working on it - it's weird. I need to set up a SQL-Server
+    Add the ability to prevent the command-executing plugins to send the player messages.
+    Adding more Templates.... (less priority, if someone needs more Templates, send me a PM, i'll code that first then) 
+
+Known Problems (with other plugins)
+
+    iSafe: Commands on a blacklist are not executed. (Not actually a problem ;-))
+    XPBank: Somehow the plugin interferes in loading the databese. 
+
+Special Thanks to:
+
+    PatPeter for his SQLibrary 
+
+This Project on GitHub
+
+Feel free to give me a feedback / send a ticket with suggestions and problems.

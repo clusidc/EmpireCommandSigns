@@ -11,9 +11,12 @@ import java.util.logging.Logger;
 
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
+import org.bukkit.block.Block;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
+import org.bukkit.event.player.PlayerInteractEvent;
+import org.bukkit.permissions.PermissionAttachment;
 import org.bukkit.plugin.PluginDescriptionFile;
 import org.bukkit.plugin.java.JavaPlugin;
 
@@ -23,7 +26,7 @@ import clusidc.EmpireCommandSigns.EventListener;
 
 public class EmpireCommandSigns extends JavaPlugin{
   private File pluginFolder;
-  //private File configFile;
+  private File configFile;
   
   public enum state {NONE, INFO, CREATE, ADDCOMMAND, REMCOMMAND, MODCOMMAND, ADDGIVEPERM, REMPERM, MODPERM, SETNEEDPERM, SETNEEDOP, SETLOCATION, REMOVE};
   
@@ -49,8 +52,8 @@ public class EmpireCommandSigns extends JavaPlugin{
     
     //enabling Process
     pluginFolder = getDataFolder();
-    //configFile = new File(pluginFolder, "config.yml");
-    //createConfig();
+    configFile = new File(pluginFolder, "config.yml");
+    createConfig();
     saveConfig();
     
     EventListener eventListener = new EventListener(this);
@@ -160,8 +163,8 @@ public class EmpireCommandSigns extends JavaPlugin{
     
     return true;
   }
-  
-/*  private void createConfig() {
+ 
+  private void createConfig() {
     if(!pluginFolder.exists()) {
       try {
         pluginFolder.mkdir();
@@ -180,7 +183,60 @@ public class EmpireCommandSigns extends JavaPlugin{
         e.printStackTrace();
       }
     }
-  }*/
+  }
+
+  
+  public void executecommands(Player pl, Block bl, PlayerInteractEvent evt) {
+    if(positions.containsKey(bl.getLocation().clone())) {
+      int id = positions.get(bl.getLocation().clone());
+      if(needop.get(id) ? pl.isOp() : (pl.hasPermission("*") || pl.hasPermission("ecs.*") || pl.hasPermission("ecs.use.*") || pl.hasPermission("ecs.admin") || pl.hasPermission(needpermission.get(id)))) {
+            //(plugin.needpermission.get(id)!=null ? pl.hasPermission(plugin.needpermission.get(id)) : true))) {
+        pl.sendMessage("[ECS] Performing commands assigned to this Sign.");
+        Location loc = pl.getLocation();
+        
+        HashMap<String, PermissionAttachment> att = new HashMap<String, PermissionAttachment>();
+        if(givenpermissions.containsKey(id)) {
+          for(String perm : givenpermissions.get(id)) {
+            att.put(perm, pl.addAttachment(this, perm, true));
+          }
+        }
+        
+        if(executeat.containsKey(id)) {
+          pl.teleport(executeat.get(id));
+          log.info(pl.getName() + " is performing following commands through the block at x:" + bl.getX() + " y:" + bl.getY() + " z:" + bl.getZ() + " on \"" + bl.getWorld().getName() +
+              "\" at position x:" + executeat.get(id).getX() + " y:" + executeat.get(id).getY() + " z:" + executeat.get(id).getZ() + " on \"" + executeat.get(id).getWorld().getName() +"\":");
+        } else {
+          log.info(pl.getName() + " is performing following commands through the block at x:" + bl.getX() + " y:" + bl.getY() + " z:" + bl.getZ() + " on \"" + bl.getWorld().getName() + "\":");
+        }
+        
+        if(commands.containsKey(id)) {
+          for(String com : commands.get(id)) {
+            if(com != null && !com.equalsIgnoreCase("")) {
+              HashMap<String, Object> validtemplates = new HashMap<String, Object>();
+              validtemplates.put("player", pl.getName());
+              for(String template : validtemplates.keySet()) {
+                com=com.replace("%"+template+"%", validtemplates.get(template).toString());
+              }
+              log.info(pl.getDisplayName() + ": " + com);
+              pl.chat(com);
+            }
+          }
+        }
+        if(!att.isEmpty()) {
+          for(PermissionAttachment at : att.values()){
+            pl.removeAttachment(at);
+          }
+          att.clear();
+        }
+
+        if(executeat.containsKey(id)) {
+          pl.teleport(loc);
+        }
+      } else {
+        pl.sendMessage("[ECS] You are not allowed to use this CommandSign.");
+      }
+    }
+  }
   
   public boolean addcommand(Location loc, String command, CommandSender sender) {
     if(!db.open()) {
@@ -277,7 +333,7 @@ public class EmpireCommandSigns extends JavaPlugin{
       }      
     } else {
       db.close();
-      log.log(Level.SEVERE, "Failed to remove a command from the Database. (Index out of bounds.)");
+      log.log(Level.SEVERE, "Failed to remove a command from the Database. (Index out of bounds. Maybe There is no command to remove left.)");
       return false;
     }
     
@@ -551,7 +607,7 @@ public class EmpireCommandSigns extends JavaPlugin{
       }      
     } else {
       db.close();
-      log.log(Level.SEVERE, "Failed to remove a permission from the Database. (Index out of bounds.)");
+      log.log(Level.SEVERE, "Failed to remove a permission from the Database. (Index out of bounds. Maybe There is no perm to remove left.)");
       return false;
     }
     
@@ -764,6 +820,7 @@ public class EmpireCommandSigns extends JavaPlugin{
     if (command.getName().equalsIgnoreCase("ecs")) {
       if(args.length > 0) {
         if(args[0].equalsIgnoreCase("reload")) {
+          //SECTION: RELOAD
           if((sender.isOp() || sender.hasPermission("ecs.reload") || sender.hasPermission("*") || sender.hasPermission("ecs.*") || sender.hasPermission("ecs.admin"))) {
             log.info("Reloading Plugin. Command came from: " + sender.getName());
             reloadConfig();
@@ -776,6 +833,7 @@ public class EmpireCommandSigns extends JavaPlugin{
             return false;
           }
         } else if(args[0].equalsIgnoreCase("create")) {
+          //SECTION: CREATE NEW SIGN
           if(sender instanceof Player) {
             if((sender.isOp() || sender.hasPermission("ecs.admin") || sender.hasPermission("*") || sender.hasPermission("ecs.*"))) {
               if(playerstate.get((Player) sender) != state.CREATE) {
@@ -796,6 +854,7 @@ public class EmpireCommandSigns extends JavaPlugin{
             return true;
           }
         } else if(args[0].equalsIgnoreCase("info")) {
+          //SECTION: GET INFO ABOUR SIGN
           if(sender instanceof Player) {
             if((sender.isOp() || sender.hasPermission("ecs.info") || sender.hasPermission("ecs.admin") || sender.hasPermission("*") || sender.hasPermission("ecs.*"))) {
               if(playerstate.get((Player) sender) != state.INFO) {
@@ -816,6 +875,7 @@ public class EmpireCommandSigns extends JavaPlugin{
             return true;
           }
         } else if(args[0].equalsIgnoreCase("addcommand")) {
+          //SECTION: ADD A COMMAND TO A SIGN
           if(sender instanceof Player) {
             if((sender.isOp() || sender.hasPermission("ecs.admin") || sender.hasPermission("*") || sender.hasPermission("ecs.*"))) {
               if(args.length > 1) {
@@ -891,6 +951,7 @@ public class EmpireCommandSigns extends JavaPlugin{
             return true;
           }
         } else if(args[0].equalsIgnoreCase("remcommand")) {
+          //SECTION: REMOVE A COMMAND FROM A SIGN
           if(sender instanceof Player) {
             if((sender.isOp() || sender.hasPermission("ecs.admin") || sender.hasPermission("*") || sender.hasPermission("ecs.*"))) {
               if(args.length > 1) {
@@ -968,6 +1029,7 @@ public class EmpireCommandSigns extends JavaPlugin{
             return true;
           }
         } else if(args[0].equalsIgnoreCase("modcommand")) {
+          //SECTION: MODIFY A COMMAND ON A SIGN
           if(sender instanceof Player) {
             if((sender.isOp() || sender.hasPermission("ecs.admin") || sender.hasPermission("*") || sender.hasPermission("ecs.*"))) {
               if(args.length > 1) {
@@ -1066,6 +1128,7 @@ public class EmpireCommandSigns extends JavaPlugin{
             return true;
           }
         } else if(args[0].equalsIgnoreCase("addperm")) {
+          //SECTION: ADD A PERMISSION TO A SIGN
           if(sender instanceof Player) {
             if((sender.isOp() || sender.hasPermission("ecs.admin") || sender.hasPermission("*") || sender.hasPermission("ecs.*"))) {
               if(args.length > 1) {
@@ -1133,6 +1196,7 @@ public class EmpireCommandSigns extends JavaPlugin{
             return true;
           }
         } else if(args[0].equalsIgnoreCase("remperm")) {
+          //SECTION: REMOVE A PERMISSION FROM A SIGN
           if(sender instanceof Player) {
             if((sender.isOp() || sender.hasPermission("ecs.admin") || sender.hasPermission("*") || sender.hasPermission("ecs.*"))) {
               if(args.length > 1) {
@@ -1210,6 +1274,7 @@ public class EmpireCommandSigns extends JavaPlugin{
             return true;
           }
         } else if(args[0].equalsIgnoreCase("modperm")) {
+          //SECTION: MODIFY A PERMISSION ON A SIGN
           if(sender instanceof Player) {
             if((sender.isOp() || sender.hasPermission("ecs.admin") || sender.hasPermission("*") || sender.hasPermission("ecs.*"))) {
               if(args.length > 1) {
@@ -1308,6 +1373,7 @@ public class EmpireCommandSigns extends JavaPlugin{
             return true;
           }
         } else if(args[0].equalsIgnoreCase("setperm")) {
+          //SECTION: SET THE PERMISSION WHICH IS NEEDED FOR USING THE SIGN
           if(sender instanceof Player) {
             if((sender.isOp() || sender.hasPermission("ecs.admin") || sender.hasPermission("*") || sender.hasPermission("ecs.*"))) {
               if(args.length > 1) {
@@ -1389,6 +1455,7 @@ public class EmpireCommandSigns extends JavaPlugin{
             return true;
           }
         } else if(args[0].equalsIgnoreCase("setloc")) {
+          //SECTION: SET THE LOCATION OF EXECUTION
           if(sender instanceof Player) {
             if((sender.isOp() || sender.hasPermission("ecs.admin") || sender.hasPermission("*") || sender.hasPermission("ecs.*"))) {
               if(args.length > 1) {
@@ -1482,6 +1549,7 @@ public class EmpireCommandSigns extends JavaPlugin{
             return true;
           }
         }  else if(args[0].equalsIgnoreCase("setop")) {
+          //SECTION: SETS WHETHER YOU NEED OP OR NOT
           if(sender instanceof Player) {
             if((sender.isOp() || sender.hasPermission("ecs.admin") || sender.hasPermission("*") || sender.hasPermission("ecs.*"))) {
               if(args.length > 1) {
@@ -1580,6 +1648,7 @@ public class EmpireCommandSigns extends JavaPlugin{
             return true;
           }
         } else if(args[0].equalsIgnoreCase("remove")) {
+          //SECTION: REMOVE THE ATTACHMENT TO A SIGN
           if(sender instanceof Player) {
             if((sender.isOp() || sender.hasPermission("ecs.admin") || sender.hasPermission("*") || sender.hasPermission("ecs.*"))) {
               if(args.length > 2) {
@@ -1652,6 +1721,7 @@ public class EmpireCommandSigns extends JavaPlugin{
             return true;
           }
         } else {
+          sender.sendMessage("Please use a proper subcommand!");
           return false;
         }
       }
