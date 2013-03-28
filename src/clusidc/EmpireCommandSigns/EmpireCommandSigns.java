@@ -60,13 +60,22 @@ public class EmpireCommandSigns extends JavaPlugin{
     getServer().getPluginManager().registerEvents(eventListener, this);
 
     log.info("Loading Signs. Please wait...");
-    if(!loadSigns()) {
+    /*if(!loadSigns()) {
+      setEnabled(false);
+    }*/
+    try {
+      setEnabled(loadSigns());
+    } catch (NoClassDefFoundError e) {
+      if(e.getCause().toString().contains("lib.PatPeter.SQLibrary.SQLite")) {
+        log.info("Couldn't find any SQLibrary Class. Do You have installed the SQLibrary?: " + e.getCause().toString());
+      } else {
+        log.info(e.getCause().toString());
+      }
       setEnabled(false);
     }
     
     if(isEnabled()) {
       log.info("Version " + pdfFile.getVersion() + " is enabled!");
-      log.info("Have Fun and pray for keeping your server alive against this evil plugin!");
     } else {
       log.log(Level.SEVERE, "Version " + pdfFile.getVersion() + " could not be enabled!");
     }
