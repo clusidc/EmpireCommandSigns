@@ -11,6 +11,7 @@ import java.util.logging.Logger;
 
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
+import org.bukkit.Material;
 import org.bukkit.block.Block;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
@@ -243,6 +244,9 @@ public class EmpireCommandSigns extends JavaPlugin{
         }
       } else {
         pl.sendMessage("[ECS] You are not allowed to use this CommandSign.");
+      }
+      if(bl.getType() == Material.WALL_SIGN || bl.getType() == Material.SIGN_POST) {
+        evt.setCancelled(true);
       }
     }
   }

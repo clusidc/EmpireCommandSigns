@@ -1,7 +1,6 @@
 package clusidc.EmpireCommandSigns;
 
 import org.bukkit.Location;
-import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -47,9 +46,6 @@ public class EventListener implements Listener {
         if (evt.getAction() == Action.PHYSICAL || ((bl.getTypeId() == 72 || bl.getTypeId() == 70) ? false : isClick(evt))) {
           plugin.executecommands(pl, bl, evt);
           plugin.playerstate.remove(pl);
-          if(bl.getType() == Material.WALL_SIGN || bl.getType() == Material.SIGN_POST) {
-            evt.setCancelled(true);
-          }
         }
       } else if(isClick(evt)){
         switch (sta) {
