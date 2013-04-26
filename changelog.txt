@@ -1,3 +1,2 @@
-* Completely rearranged the EntityListener to make it (hopefully) faster/easier to read/less code.
-+ added pressure plates
-+ added config node for leftclick.
+Economy Support
+barely added a silent mode

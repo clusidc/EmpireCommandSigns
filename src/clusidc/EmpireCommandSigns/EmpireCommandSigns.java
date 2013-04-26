@@ -9,6 +9,9 @@ import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import net.milkbowl.vault.economy.Economy;
+import net.milkbowl.vault.economy.EconomyResponse;
+
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
@@ -19,6 +22,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.permissions.PermissionAttachment;
 import org.bukkit.plugin.PluginDescriptionFile;
+import org.bukkit.plugin.RegisteredServiceProvider;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import lib.PatPeter.SQLibrary.SQLite;
@@ -29,7 +33,29 @@ public class EmpireCommandSigns extends JavaPlugin{
   private File pluginFolder;
   private File configFile;
   
-  public enum state {NONE, INFO, CREATE, ADDCOMMAND, REMCOMMAND, MODCOMMAND, ADDGIVEPERM, REMPERM, MODPERM, SETNEEDPERM, SETNEEDOP, SETLOCATION, REMOVE};
+  public boolean useEconomy;  
+
+  public static Economy economy = null;
+  
+  public enum state { NONE, 
+                      INFO,
+                      CREATE,
+                      ADDCOMMAND,
+                      REMCOMMAND,
+                      MODCOMMAND,
+                      ADDGIVEPERM,
+                      REMPERM,
+                      MODPERM,
+                      SETNEEDPERM,
+                      SETNEEDOP,
+                      SETLOCATION,
+                      REMOVE,
+                      SETECONOMY};
+                     
+  public enum economystate { NONE,
+                             CHECK,
+                             WITHDRAW,
+                             GIVE};
   
   public final HashMap<Player, state> playerstate = new HashMap<Player, state>();
   public final HashMap<Player, Object> commandstore = new HashMap<Player, Object>();
@@ -41,6 +67,9 @@ public class EmpireCommandSigns extends JavaPlugin{
   public final HashMap<Integer, Boolean> needop = new HashMap<Integer, Boolean>();
   public final HashMap<Integer, String> needpermission = new HashMap<Integer, String>();
   public final HashMap<Integer, Location> executeat = new HashMap<Integer, Location>();
+  public final HashMap<Integer, economystate> economys = new HashMap<Integer, economystate>();
+  public final HashMap<Integer, Double> economyv = new HashMap<Integer, Double>();
+  
   Logger log;
   
   SQLite db;
@@ -61,9 +90,6 @@ public class EmpireCommandSigns extends JavaPlugin{
     getServer().getPluginManager().registerEvents(eventListener, this);
 
     log.info("Loading Signs. Please wait...");
-    /*if(!loadSigns()) {
-      setEnabled(false);
-    }*/
     try {
       setEnabled(loadSigns());
     } catch (NoClassDefFoundError e) {
@@ -73,6 +99,16 @@ public class EmpireCommandSigns extends JavaPlugin{
         log.info(e.getCause().toString());
       }
       setEnabled(false);
+    }
+
+    useEconomy = false;
+    
+    if(isEnabled() && getConfig().getBoolean("useEconomy")) {
+      useEconomy = true;
+      if(!setupEconomy()) {
+        log.severe("Could not attach to Vault!");
+        setEnabled(false);
+      }
     }
     
     if(isEnabled()) {
@@ -105,7 +141,7 @@ public class EmpireCommandSigns extends JavaPlugin{
     ResultSet result;
     if(!db.isTable("signs")) {
       log.info("Requiered table \"signs\" doesn't exist, creating it...");
-      String query = "CREATE TABLE signs (id INTEGER PRIMARY KEY ASC, world VARCHAR(255), x INTEGER, y INTEGER, z INTEGER, command TEXT, givenpermissions TEXT, operator BOOLEAN, needpermission VARCHAR(255), exeworld VARCHAR(255), exex DOUBLE, exey DOUBLE, exez DOUBLE);"; // CHARACTER SET utf8 COLLATE utf8_general_ci
+      String query = "CREATE TABLE signs (id INTEGER PRIMARY KEY ASC, world VARCHAR(255), x INTEGER, y INTEGER, z INTEGER, command TEXT, givenpermissions TEXT, operator BOOLEAN, needpermission VARCHAR(255), exeworld VARCHAR(255), exex DOUBLE, exey DOUBLE, exez DOUBLE, economystate INTEGER, economyvalue DOUBLE);"; // CHARACTER SET utf8 COLLATE utf8_general_ci
       try {
         result = db.query(query);
         result.close();
@@ -115,6 +151,50 @@ public class EmpireCommandSigns extends JavaPlugin{
         return false;
       }
     }
+    
+    String query = "SELECT sql FROM sqlite_master WHERE tbl_name = \"signs\" AND type = \"table\"";
+    
+    try {
+      result = db.query(query);
+    } catch (SQLException e) {
+      log.log(Level.SEVERE, "Failed to execute the query.");
+      e.printStackTrace();
+      return false;
+    }
+
+    try {
+      if(result != null && result.next()) {
+        //log.info(result.getString("sql"));
+        if(!result.getString("sql").contains("economystate INTEGER, economyvalue DOUBLE")) {
+          result.close();
+          log.info("Economy not detected in Library, adding it.");
+          query = "ALTER TABLE signs ADD COLUMN economystate INTEGER;";
+          
+          try {
+            result = db.query(query);
+            result.close();
+          } catch (SQLException e) {
+            log.log(Level.SEVERE, "Failed to execute the query.");
+            e.printStackTrace();
+            return false;
+          }
+          
+          query = "ALTER TABLE signs ADD COLUMN economyvalue DOUBLE;";
+          
+          try {
+            result = db.query(query);
+            result.close();
+          } catch (SQLException e) {
+            log.log(Level.SEVERE, "Failed to execute the query.");
+            e.printStackTrace();
+            return false;
+          }
+        }
+      }
+    } catch (SQLException e) {
+      e.printStackTrace();
+    }
+    
     //db.close();
     return true;
   }
@@ -160,6 +240,25 @@ public class EmpireCommandSigns extends JavaPlugin{
           if(!result.getString("exeworld").isEmpty()) {
             executeat.put(id, new Location(Bukkit.getWorld(result.getString("exeworld")), result.getDouble("exex"), result.getDouble("exey"), result.getDouble("exez")));
           }
+          switch (result.getInt("economystate")) {
+            case 0:
+              economys.put(id, economystate.NONE);
+              break;
+            case 1:
+              economys.put(id, economystate.CHECK);
+              break;
+            case 2:
+              economys.put(id, economystate.WITHDRAW);
+              break;
+            case 3:
+              economys.put(id, economystate.GIVE);
+              break;
+            default:
+              economys.put(id, economystate.NONE);
+              break;
+          }
+          economyv.put(id, result.getDouble("economyvalue"));
+          log.info(result.getDouble("economyvalue") + "");
           count++;
         } while(result.next());
       }
@@ -195,14 +294,66 @@ public class EmpireCommandSigns extends JavaPlugin{
     }
   }
 
+  private boolean setupEconomy() {
+    RegisteredServiceProvider<Economy> economyProvider = getServer().getServicesManager().getRegistration(net.milkbowl.vault.economy.Economy.class);
+    if (economyProvider != null) {
+      economy = economyProvider.getProvider();
+    }
+
+    return (economy != null);
+  }
+  
+  
   
   public void executecommands(Player pl, Block bl, PlayerInteractEvent evt) {
     if(positions.containsKey(bl.getLocation().clone())) {
       int id = positions.get(bl.getLocation().clone());
       if(needop.get(id) ? pl.isOp() : (pl.hasPermission("*") || pl.hasPermission("ecs.*") || pl.hasPermission("ecs.use.*") || pl.hasPermission("ecs.admin") || pl.hasPermission(needpermission.get(id)))) {
             //(plugin.needpermission.get(id)!=null ? pl.hasPermission(plugin.needpermission.get(id)) : true))) {
-        pl.sendMessage("[ECS] Performing commands assigned to this Sign.");
+        if(getConfig().getBoolean("silentexecute")) {
+          pl.sendMessage("[ECS] Performing commands assigned to this Sign.");
+        }
         Location loc = pl.getLocation();
+
+        if(economys.get(id) == economystate.WITHDRAW) {
+          EconomyResponse r = economy.withdrawPlayer(pl.getName(), economyv.get(id));
+          if(r.transactionSuccess()) {
+            if(!getConfig().getBoolean("silentexecute")) {
+              pl.sendMessage("[ECS] For using this Sign " + economy.format(r.amount) + " was withdrawn from your account.");
+            }
+          } else {
+            if(!getConfig().getBoolean("silentexecute")) {
+              pl.sendMessage("[ECS] An error occured while withdrawing money from your account.");
+              evt.setCancelled(true);
+              return;
+            }
+          }
+        } else if(economys.get(id) == economystate.GIVE) {
+          EconomyResponse r = economy.depositPlayer(pl.getName(), economyv.get(id));
+          if(r.transactionSuccess()) {
+            if(!getConfig().getBoolean("silentexecute")) {
+              pl.sendMessage("[ECS] This great Sign gave you " + economy.format(r.amount) + ".");
+            }
+          } else {
+            if(!getConfig().getBoolean("silentexecute")) {
+              pl.sendMessage("[ECS] An error occured while depositiong money to your account.");
+              evt.setCancelled(true);
+              return;
+            }
+          }
+        } else if(economys.get(id) == economystate.CHECK) {
+          if(economy.has(pl.getName(), economyv.get(id))) {
+            if(!getConfig().getBoolean("silentexecute")) {
+              pl.sendMessage("[ECS] This great Sign thinks that you have enough money.");
+            }
+          } else {
+            if(!getConfig().getBoolean("silentexecute")) {
+              pl.sendMessage("[ECS] You don't have enough money.");
+              evt.setCancelled(true);
+              return;
+            }
+          }
+        }
         
         HashMap<String, PermissionAttachment> att = new HashMap<String, PermissionAttachment>();
         if(givenpermissions.containsKey(id)) {
@@ -824,6 +975,33 @@ public class EmpireCommandSigns extends JavaPlugin{
     }
     db.close();
     log.info(sender.getName() + "deleted the sign from the database: " + loc.toVector().toString());
+    
+    return true;
+  }
+  
+  public boolean seteconomy(Location loc, economystate estate, double value, CommandSender sender) {
+    if(!db.open()) {
+      log.log(Level.SEVERE, "Failed to connect to the Database.");
+      return false;
+    }
+    
+    String query = "UPDATE signs SET economystate=" + estate.ordinal() + ", economyvalue=\"" + value + "\" WHERE id=" + positions.get(loc) + ";";
+    
+    try {
+      db.query(query);
+    } catch (Exception e) {
+      db.close();
+      log.log(Level.SEVERE, "Failed to set the Economy-State of a Sign in Database.");
+      e.printStackTrace();
+      return false;
+    }
+    db.close();
+    
+    if(!loadSigns()) {
+      return false;
+    }
+    db.close();
+    log.info(sender.getName() + " set the economy-actions in the database: " + positions.get(loc) + ": State " + estate + ", value " + value);
     
     return true;
   }
@@ -1459,6 +1637,113 @@ public class EmpireCommandSigns extends JavaPlugin{
                   sender.sendMessage("[ECS] Aborted setting permission!");
                   return true;
                 }
+              }              
+            } else {
+              return false;
+            }
+          } else {
+            sender.sendMessage("[ECS] It seems that you are on the console, try this command ingame again.");
+            return true;
+          }
+        } else if(args[0].equalsIgnoreCase("seteconomy")) {
+          //SECTION: MODIFY A COMMAND ON A SIGN
+          if(sender instanceof Player) {
+            if((sender.isOp() || sender.hasPermission("ecs.admin") || sender.hasPermission("*") || sender.hasPermission("ecs.*"))) {
+              if(args.length > 1) {
+                if(args[1].equalsIgnoreCase("id")) {
+                  if(args.length > 2) {
+                    int intid;
+                    try {                      
+                      intid=Integer.parseInt(args[2]);
+                    }
+                    catch(NumberFormatException e) {
+                      intid=-1;
+                      sender.sendMessage("[ECS] Your id is not a parsable int.");
+                      return true;
+                    }
+                    if(positions.containsValue(intid)) {
+                      Set<Entry<Location, Integer>> posset = positions.entrySet();
+                      for(Entry<Location, Integer> ent: posset) {
+                        if(ent.getValue() == intid) {
+                          if(args.length > 3) {
+                            economystate ecos = economystate.NONE;
+                            if(args[3].equalsIgnoreCase("Withdraw")) {
+                              ecos = economystate.WITHDRAW;
+                            } else if(args[3].equalsIgnoreCase("Check")) {
+                              ecos = economystate.CHECK;
+                            } else if(args[3].equalsIgnoreCase("Give")) {
+                              ecos = economystate.GIVE;
+                            } 
+
+                            log.info(ecos.toString());
+
+                            double value = 0;
+                            if(args.length > 4) {
+                              try {
+                                value = Double.parseDouble(args[4]);
+                              } catch(NumberFormatException e) {
+                                sender.sendMessage("[ECS] Your value is not a parsable double/float value.");
+                                return true;
+                              }
+                            }
+                            if(!seteconomy(ent.getKey(), ecos, value, sender)) {
+                              sender.sendMessage("[ECS] A problem occured while setting the economy state, please view the server log for further information.");
+                              return true;
+                            } else {
+                              sender.sendMessage("[ECS] Successfully modified the economy state in the sign.");
+                              return true;
+                            }
+                          } else {
+                            sender.sendMessage("[ECS] Please specify an action!");
+                          }
+                        }
+                      }
+                    } else {
+                      sender.sendMessage("[ECS] Your id does not exist.");
+                      return true;
+                    }
+                  } else {
+                    sender.sendMessage("[ECS] Too few arguments.");
+                  }
+                } else if (args.length > 2){
+                  economystate ecos = economystate.NONE;
+                  if(args[1].equalsIgnoreCase("Withdraw")) {
+                    ecos = economystate.WITHDRAW;
+                  } else if(args[1].equalsIgnoreCase("Check")) {
+                    ecos = economystate.CHECK;
+                  } else if(args[1].equalsIgnoreCase("Give")) {
+                    ecos = economystate.GIVE;
+                  } 
+
+                  log.info(ecos.toString());
+
+                  double value = 0;
+                  if(args.length > 3) {
+                    try {
+                      value = Double.parseDouble(args[2]);
+                    } catch(NumberFormatException e) {
+                      sender.sendMessage("[ECS] Your value is not a parsable double/float value.");
+                      return true;
+                    }
+                  }
+                  if(playerstate.get((Player) sender) != state.SETECONOMY) {
+                    playerstate.remove((Player) sender);
+                    playerstate.put((Player) sender, state.SETECONOMY);
+                    
+                    commandstore.put((Player) sender, ecos);
+                    commandstore2.put((Player) sender, value);
+                    sender.sendMessage("[ECS] To modify the economy state of a sign, please click on it.");
+                    return true;
+                  } else {
+                    playerstate.remove((Player) sender);
+                    sender.sendMessage("[ECS] Aborted modifying!");
+                    return true;
+                  }
+                } else {
+                  sender.sendMessage("[ECS] Too few arguments.");
+                } 
+              } else {
+                sender.sendMessage("[ECS] Too few arguments.");
               }              
             } else {
               return false;

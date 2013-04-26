@@ -10,6 +10,7 @@ import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.block.Block;
 import org.bukkit.command.CommandSender;
 import clusidc.EmpireCommandSigns.EmpireCommandSigns.state;
+import clusidc.EmpireCommandSigns.EmpireCommandSigns.economystate;;
 
 public class EventListener implements Listener {
   
@@ -96,6 +97,9 @@ public class EventListener implements Listener {
                       perm = plugin.givenpermissions.get(id)[i];
                       pl.sendMessage("   |-> " + i + ": " + perm);
                     }
+                  }
+                  if(plugin.economys.containsKey(id)) {
+                    pl.sendMessage(" |-> Economy Settings: " + plugin.economys.get(id).toString() + (plugin.economys.get(id) == economystate.NONE  ? "" : plugin.economyv.get(id)));
                   }
                 } else {
                   pl.sendMessage("[ECB] You don't have the permissions to view the attached commands of this sign!");
@@ -222,6 +226,17 @@ public class EventListener implements Listener {
                       pl.sendMessage("[ECS] A problem occured while setting the needed permission to the sign, please view the server log for further information.");
                     } else {
                       pl.sendMessage("[ECS] Successfully set the needed permission of the sign.");
+                    }
+                  } else {
+                    pl.sendMessage("[ECS] You don't have enough permission to modify a CommandSign.");
+                  }
+                  break;
+                case SETECONOMY:
+                  if(hasAdminPerms) {
+                    if(!plugin.seteconomy(bl.getLocation().clone(), (economystate)plugin.commandstore.get(pl), (Double)plugin.commandstore2.get(pl), (CommandSender) pl)) {
+                      pl.sendMessage("[ECS] A problem occured while setting the economystate, please view the server log for further information." + plugin.commandstore.get(pl));
+                    } else {
+                      pl.sendMessage("[ECS] Successfully set the economystate of the sign.");
                     }
                   } else {
                     pl.sendMessage("[ECS] You don't have enough permission to modify a CommandSign.");
