@@ -258,7 +258,7 @@ public class EmpireCommandSigns extends JavaPlugin{
               break;
           }
           economyv.put(id, result.getDouble("economyvalue"));
-          log.info(result.getDouble("economyvalue") + "");
+          //log.info(result.getDouble("economyvalue") + "");
           count++;
         } while(result.next());
       }
