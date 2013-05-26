@@ -314,43 +314,45 @@ public class EmpireCommandSigns extends JavaPlugin{
           pl.sendMessage("[ECS] Performing commands assigned to this Sign.");
         }
         Location loc = pl.getLocation();
-
-        if(economys.get(id) == economystate.WITHDRAW) {
-          EconomyResponse r = economy.withdrawPlayer(pl.getName(), economyv.get(id));
-          if(r.transactionSuccess()) {
-            if(!getConfig().getBoolean("silentexecute")) {
-              pl.sendMessage("[ECS] For using this Sign " + economy.format(r.amount) + " was withdrawn from your account.");
+        
+        if(useEconomy) {
+          if(economys.get(id) == economystate.WITHDRAW) {
+            EconomyResponse r = economy.withdrawPlayer(pl.getName(), economyv.get(id));
+            if(r.transactionSuccess()) {
+              if(!getConfig().getBoolean("silentexecute")) {
+                pl.sendMessage("[ECS] For using this Sign " + economy.format(r.amount) + " was withdrawn from your account.");
+              }
+            } else {
+              if(!getConfig().getBoolean("silentexecute")) {
+                pl.sendMessage("[ECS] An error occured while withdrawing money from your account.");
+                evt.setCancelled(true);
+                return;
+              }
             }
-          } else {
-            if(!getConfig().getBoolean("silentexecute")) {
-              pl.sendMessage("[ECS] An error occured while withdrawing money from your account.");
-              evt.setCancelled(true);
-              return;
+          } else if(economys.get(id) == economystate.GIVE) {
+            EconomyResponse r = economy.depositPlayer(pl.getName(), economyv.get(id));
+            if(r.transactionSuccess()) {
+              if(!getConfig().getBoolean("silentexecute")) {
+                pl.sendMessage("[ECS] This great Sign gave you " + economy.format(r.amount) + ".");
+              }
+            } else {
+              if(!getConfig().getBoolean("silentexecute")) {
+                pl.sendMessage("[ECS] An error occured while depositiong money to your account.");
+                evt.setCancelled(true);
+                return;
+              }
             }
-          }
-        } else if(economys.get(id) == economystate.GIVE) {
-          EconomyResponse r = economy.depositPlayer(pl.getName(), economyv.get(id));
-          if(r.transactionSuccess()) {
-            if(!getConfig().getBoolean("silentexecute")) {
-              pl.sendMessage("[ECS] This great Sign gave you " + economy.format(r.amount) + ".");
-            }
-          } else {
-            if(!getConfig().getBoolean("silentexecute")) {
-              pl.sendMessage("[ECS] An error occured while depositiong money to your account.");
-              evt.setCancelled(true);
-              return;
-            }
-          }
-        } else if(economys.get(id) == economystate.CHECK) {
-          if(economy.has(pl.getName(), economyv.get(id))) {
-            if(!getConfig().getBoolean("silentexecute")) {
-              pl.sendMessage("[ECS] This great Sign thinks that you have enough money.");
-            }
-          } else {
-            if(!getConfig().getBoolean("silentexecute")) {
-              pl.sendMessage("[ECS] You don't have enough money.");
-              evt.setCancelled(true);
-              return;
+          } else if(economys.get(id) == economystate.CHECK) {
+            if(economy.has(pl.getName(), economyv.get(id))) {
+              if(!getConfig().getBoolean("silentexecute")) {
+                pl.sendMessage("[ECS] This great Sign thinks that you have enough money.");
+              }
+            } else {
+              if(!getConfig().getBoolean("silentexecute")) {
+                pl.sendMessage("[ECS] You don't have enough money.");
+                evt.setCancelled(true);
+                return;
+              }
             }
           }
         }
@@ -980,6 +982,8 @@ public class EmpireCommandSigns extends JavaPlugin{
   }
   
   public boolean seteconomy(Location loc, economystate estate, double value, CommandSender sender) {
+    if(!useEconomy) return false;
+    
     if(!db.open()) {
       log.log(Level.SEVERE, "Failed to connect to the Database.");
       return false;
