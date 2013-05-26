@@ -2,6 +2,7 @@ name: EmpireCommandSigns
 main: clusidc.EmpireCommandSigns.EmpireCommandSigns
 version: Beta-0.4-dev-1
 softdepend: [Vault]
+depend: [SQLibrary]
 commands:
   ecs:
     description: EmpireCommandSigns http://dev.bukkit.org/server-mods/empirecommandsigns/
