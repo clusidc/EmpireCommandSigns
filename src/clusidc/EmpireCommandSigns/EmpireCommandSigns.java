@@ -1677,9 +1677,7 @@ public class EmpireCommandSigns extends JavaPlugin{
                               ecos = economystate.CHECK;
                             } else if(args[3].equalsIgnoreCase("Give")) {
                               ecos = economystate.GIVE;
-                            } 
-
-                            log.info(ecos.toString());
+                            }
 
                             double value = 0;
                             if(args.length > 4) {
@@ -1719,17 +1717,14 @@ public class EmpireCommandSigns extends JavaPlugin{
                     ecos = economystate.GIVE;
                   } 
 
-                  log.info(ecos.toString());
-
                   double value = 0;
-                  if(args.length > 3) {
-                    try {
-                      value = Double.parseDouble(args[2]);
-                    } catch(NumberFormatException e) {
-                      sender.sendMessage("[ECS] Your value is not a parsable double/float value.");
-                      return true;
-                    }
+                  try {
+                    value = Double.parseDouble(args[2]);
+                  } catch(NumberFormatException e) {
+                    sender.sendMessage("[ECS] Your value is not a parsable double/float value.");
+                    return true;
                   }
+                  
                   if(playerstate.get((Player) sender) != state.SETECONOMY) {
                     playerstate.remove((Player) sender);
                     playerstate.put((Player) sender, state.SETECONOMY);

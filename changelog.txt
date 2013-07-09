@@ -1,1 +1,1 @@
-* fixed Use-economy
+* fixed setEconomy-function
