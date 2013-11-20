@@ -4,6 +4,7 @@ import java.io.File;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.HashMap;
+import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 import java.util.logging.Level;
@@ -18,6 +19,7 @@ import org.bukkit.Material;
 import org.bukkit.block.Block;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
+import org.bukkit.configuration.Configuration;
 import org.bukkit.entity.Player;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.permissions.PermissionAttachment;
@@ -34,9 +36,13 @@ public class EmpireCommandSigns extends JavaPlugin{
   private File configFile;
   
   public boolean useEconomy;  
-
-  public static Economy economy = null;
+  public static Economy economy;
   
+  public boolean debug = true; 
+  public enum dlvl {  NORMAL,
+                      DEBUG,
+                      SPECIAL};
+
   public enum state { NONE, 
                       INFO,
                       CREATE,
@@ -57,6 +63,8 @@ public class EmpireCommandSigns extends JavaPlugin{
                              WITHDRAW,
                              GIVE};
   
+  public final HashMap<String, Object> defaults = new HashMap<String, Object>();
+                             
   public final HashMap<Player, state> playerstate = new HashMap<Player, state>();
   public final HashMap<Player, Object> commandstore = new HashMap<Player, Object>();
   public final HashMap<Player, Object> commandstore2 = new HashMap<Player, Object>();
@@ -74,6 +82,16 @@ public class EmpireCommandSigns extends JavaPlugin{
   
   SQLite db;
   
+  public void logDebug(Level ll, dlvl dl, String msg) {
+    if (dl == dlvl.NORMAL) {
+      log.log(ll, msg);
+    } else if (dl == dlvl.DEBUG && debug) {
+      log.log(ll, "[DEBUG]" + msg);
+    } else if (dl == dlvl.SPECIAL) {
+      log.log(ll, "[IMPORTANT]" + msg);
+    }
+  }
+  
   @Override
   public void onEnable() {
     log = this.getLogger();
@@ -84,24 +102,29 @@ public class EmpireCommandSigns extends JavaPlugin{
     pluginFolder = getDataFolder();
     configFile = new File(pluginFolder, "config.yml");
     createConfig();
+    this.getConfig().options().copyDefaults(true);    
     saveConfig();
+    
+    debug = this.getConfig().getBoolean("debugMessages");
     
     EventListener eventListener = new EventListener(this);
     getServer().getPluginManager().registerEvents(eventListener, this);
 
-    log.info("Loading Signs. Please wait...");
+    logDebug(Level.INFO, dlvl.DEBUG, "Loading Signs. Please wait...");
     try {
       setEnabled(loadSigns());
     } catch (NoClassDefFoundError e) {
       if(e.getCause().toString().contains("lib.PatPeter.SQLibrary.SQLite")) {
-        log.info("Couldn't find any SQLibrary Class. Do You have installed the SQLibrary?: " + e.getCause().toString());
+        log.severe("Couldn't find any SQLibrary Class. Do You have installed the SQLibrary?: " + e.getCause().toString());
       } else {
-        log.info(e.getCause().toString());
+        log.severe(e.getCause().toString());
       }
       setEnabled(false);
     }
 
+    //Enable Economy
     useEconomy = false;
+    economy = null;
     
     if(isEnabled() && getConfig().getBoolean("useEconomy")) {
       useEconomy = true;
@@ -110,7 +133,8 @@ public class EmpireCommandSigns extends JavaPlugin{
         setEnabled(false);
       }
     }
-    
+
+    //If successfully enabled
     if(isEnabled()) {
       log.info("Version " + pdfFile.getVersion() + " is enabled!");
     } else {
@@ -123,8 +147,16 @@ public class EmpireCommandSigns extends JavaPlugin{
     
   }
   
+  /*private void fillDefaultConfig(){
+    defaults.put("leftclick", true);
+    defaults.put("useEconomy", true);
+    defaults.put("silentexecute", false);
+    defaults.put("debugMessages", false);
+    this.getConfig().addDefaults(defaults);
+  }*/
+  
   private boolean opendb() {
-    log.info("Open Database...");
+    logDebug(Level.INFO, dlvl.DEBUG, "Open Database...");
     db = new SQLite(log, "[ECS] ", pluginFolder.getPath(), "signs");
     if(!db.open()) {
       log.log(Level.SEVERE, "Failed to connect to the Database.");
@@ -157,7 +189,7 @@ public class EmpireCommandSigns extends JavaPlugin{
     try {
       result = db.query(query);
     } catch (SQLException e) {
-      log.log(Level.SEVERE, "Failed to execute the query.");
+      log.log(Level.SEVERE, "Failed to execute the query: " + query);
       e.printStackTrace();
       return false;
     }
@@ -174,7 +206,7 @@ public class EmpireCommandSigns extends JavaPlugin{
             result = db.query(query);
             result.close();
           } catch (SQLException e) {
-            log.log(Level.SEVERE, "Failed to execute the query.");
+            log.log(Level.SEVERE, "Failed to execute the query: " + query);
             e.printStackTrace();
             return false;
           }
@@ -185,7 +217,7 @@ public class EmpireCommandSigns extends JavaPlugin{
             result = db.query(query);
             result.close();
           } catch (SQLException e) {
-            log.log(Level.SEVERE, "Failed to execute the query.");
+            log.log(Level.SEVERE, "Failed to execute the query: " + query);
             e.printStackTrace();
             return false;
           }
@@ -219,7 +251,7 @@ public class EmpireCommandSigns extends JavaPlugin{
     try {
       result = db.query(query);
     } catch (SQLException e) {
-      log.log(Level.SEVERE, "Failed to execute the query.");
+      log.log(Level.SEVERE, "Failed to execute the query: " + query);
       e.printStackTrace();
       return false;
     }
@@ -262,7 +294,7 @@ public class EmpireCommandSigns extends JavaPlugin{
           count++;
         } while(result.next());
       }
-      log.info("Found " + count + " command sings!");
+      logDebug(Level.INFO, dlvl.DEBUG, "Found " + count + " command sings!");
     } catch (SQLException e) {
       e.printStackTrace();
       db.close();
@@ -286,7 +318,6 @@ public class EmpireCommandSigns extends JavaPlugin{
     if(!configFile.exists()) {
       try {
         configFile.createNewFile();
-        this.getConfig().options().copyDefaults(true);
       }
       catch(Exception e) {
         e.printStackTrace();
@@ -295,10 +326,17 @@ public class EmpireCommandSigns extends JavaPlugin{
   }
 
   private boolean setupEconomy() {
-    RegisteredServiceProvider<Economy> economyProvider = getServer().getServicesManager().getRegistration(net.milkbowl.vault.economy.Economy.class);
-    if (economyProvider != null) {
-      economy = economyProvider.getProvider();
+    if (getServer().getPluginManager().getPlugin("Vault") == null) {
+      log.severe("Could not find the plugin Vault!");
+      return false;
     }
+    
+    RegisteredServiceProvider<Economy> economyProvider = getServer().getServicesManager().getRegistration(Economy.class);
+    if (economyProvider == null) {
+      log.severe("Could not find an economy provider! Maybe no Economy Plugin is installed!");
+      return false;
+    }
+    economy = economyProvider.getProvider();
 
     return (economy != null);
   }

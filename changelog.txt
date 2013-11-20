@@ -1,1 +1,4 @@
-* fixed setEconomy-function
+* fixed vault attachment/edited the error Messages
++ less log spamming (option debugMessages)
+* optimized the config handling
+* changed default values

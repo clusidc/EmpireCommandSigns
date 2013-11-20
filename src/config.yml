@@ -1,3 +1,4 @@
 leftclick: true
-useEconomy: true
+useEconomy: false
 silentexecute: false
+debugMessages: false
