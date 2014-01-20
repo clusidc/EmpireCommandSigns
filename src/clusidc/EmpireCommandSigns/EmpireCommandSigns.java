@@ -494,7 +494,7 @@ public class EmpireCommandSigns extends JavaPlugin{
     comman[comman.length-1] = command;    
     commands.put(positions.get(loc), comman);
     
-    log.info(sender.getName() + "added the following Command to Sign with id " + positions.get(loc) + ": " + command);
+    log.info(sender.getName() + " added the following Command to Sign with id " + positions.get(loc) + ": " + command);
     
     return true;
   }
@@ -1544,7 +1544,7 @@ public class EmpireCommandSigns extends JavaPlugin{
                                 cmd += args[i];
                               }
                             }
-                            if(!modcommand(ent.getKey(), index, cmd, sender)) {
+                            if(!modperm(ent.getKey(), index, cmd, sender)) {
                               sender.sendMessage("[ECS] A problem occured while modifying a permission, please view the server log for further information.");
                               return true;
                             } else {

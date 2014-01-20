@@ -1,6 +1,6 @@
 name: EmpireCommandSigns
 main: clusidc.EmpireCommandSigns.EmpireCommandSigns
-version: Beta-0.4e
+version: Beta-0.4f
 softdepend: [Vault]
 depend: [SQLibrary]
 commands:
